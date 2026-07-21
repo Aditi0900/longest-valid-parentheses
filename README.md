@@ -36,8 +36,7 @@ Note that the answer is always even, and the substring must be **contiguous** �
 ```
 .
 ├── README.md
-├── .gitignore
-└── Solution.java     # both solutions + the test harness
+└── Solution.java     # both solutions + the test cases
 ```
 
 ## Running It
@@ -118,7 +117,7 @@ worth it on the upper end of the input constraint.
 
 | Approach | Time | Space | Notes |
 |----------|------|-------|-------|
-| Brute force (every substring) | O(n²) | O(1) | Too slow at n = 30,000; used here only as a test oracle |
+| Brute force (every substring) | O(n²) | O(1) | Correct but far too slow at n = 30,000 |
 | Dynamic programming | O(n) | O(n) | Works, but the recurrence is fiddlier than the stack |
 | **Index stack** | **O(n)** | **O(n)** | Clearest to reason about; each index pushed and popped once |
 | **Two counter sweeps** | **O(n)** | **O(1)** | Optimal on both axes |
@@ -130,28 +129,23 @@ run them against each other.
 
 ## Testing
 
-`main` covers three layers:
+`main` runs the three examples from the problem statement plus the edge cases that
+usually break this problem: empty and single-character inputs, `")("`, all-open and
+all-close strings, nesting, adjacent pairs that merge into one longer run, valid runs
+buried in junk, and `null`.
 
-1. **The provided examples** — `"(()"`, `")()())"`, `""`.
-2. **Edge and structural cases** — empty and single-character inputs, `")("`,
-   all-open and all-close strings, nesting, adjacent pairs that merge into one longer
-   run, valid runs surrounded by junk, ties, `null`, and a 10,000-character input to
-   confirm there is no quadratic blowup or trouble with deep nesting.
-3. **A randomised cross-check** — 20,000 random strings run through both solutions
-   and an obviously-correct O(n²) brute force. The two fast solutions were derived
-   from different ideas, so agreeing with each other *and* with brute force on
-   thousands of random inputs is strong evidence both are right. The seed is fixed,
-   so any failure reproduces exactly.
+Every case runs through both implementations, so the two act as a check on each
+other — if they ever disagree, at least one is wrong.
 
 Sample output:
 
 ```
-PASS "(()"                              expected=2     stack=2     constantSpace=2
-PASS ")()())"                           expected=4     stack=4     constantSpace=4
-PASS ""                                 expected=0     stack=0     constantSpace=0
+PASS  "(()"          expected 2  got 2, 2
+PASS  ")()())"       expected 4  got 4, 4
+PASS  ""             expected 0  got 0, 0
+PASS  ")("           expected 0  got 0, 0
+PASS  "(()))())("    expected 4  got 4, 4
 ...
-PASS "(((((((((((((((((..." (len 10000) expected=10000 stack=10000 constantSpace=10000
-PASS randomised cross-check             20000 random strings vs brute force
 
 All tests passed.
 ```

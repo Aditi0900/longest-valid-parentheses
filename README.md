@@ -1,58 +1,161 @@
 # Longest Valid Parentheses
 
+Given a string containing only the characters `(` and `)`, return the length of the
+longest **valid** (well-formed) parentheses substring.
+
+A substring is valid when every `(` has a matching `)` after it and the pairs are
+properly nested — `"(())"` is valid, `")("` is not.
+
+---
+
 ## Problem Statement
 
-Given a string containing only the characters `(` and `)`, return the length of the longest valid (well-formed) parentheses substring.
+**Input:** a string `s` consisting only of `(` and `)`
+**Output:** an integer — the length of the longest valid parentheses substring
+
+**Constraints**
+
+- `0 <= s.length <= 3 * 10^4`
+- `s[i]` is `'('` or `')'`
 
 ### Examples
 
-**Example 1**
+| # | Input | Output | Why |
+|---|-------|--------|-----|
+| 1 | `"(()"` | `2` | The longest valid substring is `"()"` |
+| 2 | `")()())"` | `4` | The longest valid substring is `"()()"` |
+| 3 | `""` | `0` | No valid substring exists |
 
-```
-Input: s = "(()"
-Output: 2
-```
+Note that the answer is always even, and the substring must be **contiguous** —
+`"()(()"` is `2`, not `4`, because the two valid pairs are not adjacent.
 
-**Example 2**
+---
 
-```
-Input: s = ")()())"
-Output: 4
-```
-
-**Example 3**
-
-```
-Input: s = ""
-Output: 0
-```
-
-## Solution
-
-This repository contains an optimal Java solution using a stack to efficiently determine the length of the longest valid parentheses substring.
-
-### Algorithm
-
-1. Initialize a stack with `-1`.
-2. Traverse the string from left to right.
-3. Push the index of every `'('` onto the stack.
-4. For every `')'`, pop the stack.
-5. If the stack becomes empty, push the current index as the new base.
-6. Otherwise, update the maximum valid substring length.
-
-## Complexity
-
-* **Time Complexity:** O(n)
-* **Space Complexity:** O(n)
-
-## Language
-
-* Java
-
-## File Structure
+## Repository Structure
 
 ```
 .
 ├── README.md
-└── Solution.java
+├── .gitignore
+└── Solution.java     # both solutions + the test harness
 ```
+
+## Running It
+
+Requires a JDK (8 or newer).
+
+```bash
+javac Solution.java
+java Solution
+```
+
+`main` runs the full test suite and prints a `PASS`/`FAIL` line per case, exiting
+with a non-zero status if anything fails.
+
+---
+
+## Approach 1 — Index Stack · O(n) time, O(n) space
+
+The natural instinct is to push parentheses onto a stack. The better idea is to push
+their **indices**.
+
+Doing that, the stack always holds the position of the most recent character that
+could *not* be matched. So the moment a `)` closes a pair, the distance from the
+current index back to whatever is left on top of the stack *is* the length of the
+valid run ending here — no counting required.
+
+The stack is seeded with `-1`, a sentinel standing for "the boundary just before the
+string". It removes the special case for a valid substring that starts at index `0`.
+
+**The rules**
+
+1. Push `-1` as the initial boundary.
+2. On `(` — push its index.
+3. On `)` — pop, then:
+   - stack now empty → this `)` has no partner, so push its index as the new boundary;
+   - otherwise → `maxLength = max(maxLength, i - stack.top())`.
+
+**Worked trace on `")()())"`**
+
+| i | char | action | stack after | max |
+|---|------|--------|-------------|-----|
+| — | — | seed sentinel | `[-1]` | 0 |
+| 0 | `)` | pop `-1`, empty → push `0` | `[0]` | 0 |
+| 1 | `(` | push `1` | `[0, 1]` | 0 |
+| 2 | `)` | pop `1`, top is `0` → `2 - 0` | `[0]` | **2** |
+| 3 | `(` | push `3` | `[0, 3]` | 2 |
+| 4 | `)` | pop `3`, top is `0` → `4 - 0` | `[0]` | **4** |
+| 5 | `)` | pop `0`, empty → push `5` | `[5]` | 4 |
+
+Answer: **4**.
+
+Index `0` survives on the stack as a wall the whole time — nothing after it can pair
+with anything before it, which is exactly what a boundary should do.
+
+> **Implementation note:** `ArrayDeque` is used rather than `java.util.Stack`.
+> `Stack` extends the legacy `Vector`, so every push and pop pays for a
+> synchronization lock this single-threaded algorithm never needs.
+
+## Approach 2 — Two Counter Sweeps · O(n) time, O(1) space
+
+The stack exists only to remember boundaries. Two counters can do the same job
+without the memory.
+
+Sweeping left to right, count `open` and `close`:
+
+- `open == close` → the current run is balanced, record `2 * close`;
+- `close > open` → too many `)`, this run is unrecoverable, reset both to zero.
+
+That alone is not enough. On `"((()"` the sweep ends with `open` still ahead and
+never hits equality again, so the valid `"()"` inside is missed. A second sweep from
+the right with the mirrored rule (reset when `open > close`) catches exactly those
+cases. The answer is the larger of the two sweeps.
+
+This trades one pass of extra work for dropping O(n) memory down to four `int`s —
+worth it on the upper end of the input constraint.
+
+## Complexity
+
+| Approach | Time | Space | Notes |
+|----------|------|-------|-------|
+| Brute force (every substring) | O(n²) | O(1) | Too slow at n = 30,000; used here only as a test oracle |
+| Dynamic programming | O(n) | O(n) | Works, but the recurrence is fiddlier than the stack |
+| **Index stack** | **O(n)** | **O(n)** | Clearest to reason about; each index pushed and popped once |
+| **Two counter sweeps** | **O(n)** | **O(1)** | Optimal on both axes |
+
+Both implementations ship in `Solution.java`; neither is dead code, since the tests
+run them against each other.
+
+---
+
+## Testing
+
+`main` covers three layers:
+
+1. **The provided examples** — `"(()"`, `")()())"`, `""`.
+2. **Edge and structural cases** — empty and single-character inputs, `")("`,
+   all-open and all-close strings, nesting, adjacent pairs that merge into one longer
+   run, valid runs surrounded by junk, ties, `null`, and a 10,000-character input to
+   confirm there is no quadratic blowup or trouble with deep nesting.
+3. **A randomised cross-check** — 20,000 random strings run through both solutions
+   and an obviously-correct O(n²) brute force. The two fast solutions were derived
+   from different ideas, so agreeing with each other *and* with brute force on
+   thousands of random inputs is strong evidence both are right. The seed is fixed,
+   so any failure reproduces exactly.
+
+Sample output:
+
+```
+PASS "(()"                              expected=2     stack=2     constantSpace=2
+PASS ")()())"                           expected=4     stack=4     constantSpace=4
+PASS ""                                 expected=0     stack=0     constantSpace=0
+...
+PASS "(((((((((((((((((..." (len 10000) expected=10000 stack=10000 constantSpace=10000
+PASS randomised cross-check             20000 random strings vs brute force
+
+All tests passed.
+```
+
+## Language
+
+Java (no external dependencies — compiles and runs with a plain JDK).
